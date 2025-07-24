@@ -1,54 +1,98 @@
 import flet as ft
-from api import FreeCurrencyApi, moedas_disponiveis
+from api import AwesomeApi
 
-fca = FreeCurrencyApi()
-moedas = moedas_disponiveis()
-
+awesome_api = AwesomeApi()
+moedas = awesome_api.moedas_disponiveis()
 
 def main(page: ft.Page):
     page.title = "App de Cotação"
-    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.vertical_alignment = ft.MainAxisAlignment.START
+    page.padding = 30
+    page.scroll = "auto"
 
-    titulo = ft.Text("Cotação de Moedas", size=24, weight="bold")
-    # campo_moeda = ft.TextField(label="Moeda (ex: USD-BRL)", width=200)
+    titulo = ft.Text("💱 Cotação de Moedas", size=24, weight="bold")
+
     campo_converter_de_moeda = ft.Dropdown(
-        label="Selecione uma moeda",
+        label="Converter de:",
         options=[
-            ft.dropdown.Option(key=f"{k}", text=f"{k} → {v}") for k, v in moedas.items()
+            ft.dropdown.Option(key=k, text=f"{k} → {v}") for k, v in moedas.items()
         ],
         value="BRL",
-        width=200,
+        width=250,
     )
+
     campo_converter_para_moeda = ft.Dropdown(
-        label="Selecione uma moeda",
+        label="Para:",
         options=[
-            ft.dropdown.Option(key=f"{k}", text=f"{k} → {v}") for k, v in moedas.items()
+            ft.dropdown.Option(key=k, text=f"{k} → {v}") for k, v in moedas.items()
         ],
         value="USD",
-        width=200,
+        width=250,
     )
-    resultado = ft.Text("")
+
+    valor = ft.TextField(
+        label="Valor de conversão",
+        value="1",
+        width=100,
+        keyboard_type=ft.KeyboardType.NUMBER
+    )
+
+    resultado = ft.Text(
+        value="0",
+        width=250,
+        size=16,
+        weight="bold",
+        color="#FFFFFF"
+    )
 
     def buscar_click(e):
-        converter_de_moeda = campo_converter_de_moeda.value
-        converter_para_moeda = campo_converter_para_moeda.value
-        resultado.value = (
-            f"Buscando cotação de: {converter_de_moeda} para {converter_para_moeda} "
-        )
-        page.update()
-        cotacao = fca.cotacao_atual(converter_de_moeda, converter_para_moeda)
-        print(converter_para_moeda)
-        for k, v in cotacao.get("data").items():
-            cotacao_valor = v
-        resultado.value = f"{k}: {round(cotacao_valor,3)}"
+        de = campo_converter_de_moeda.value
+        para = campo_converter_para_moeda.value
+        try:
+            valor_num = float(valor.value)
+            resultado.value = "🔄 Consultando..."
+            page.update()
+
+            cotacao = awesome_api.cotacao_atual(de, para, valor_num)
+
+            if isinstance(cotacao, str) and "Erro" in cotacao:
+                resultado.value = "❌ Erro ao consultar"
+                resultado.color = "#F44336"
+            else:
+                resultado.value = f"💲 {cotacao}"
+                resultado.color = "#FFFFFF"
+
+        except ValueError:
+            resultado.value = "❗ Valor inválido"
+            resultado.color = "#F44336"
+
         page.update()
 
     botao = ft.ElevatedButton("Buscar", on_click=buscar_click)
 
     page.add(
-        titulo, campo_converter_de_moeda, campo_converter_para_moeda, botao, resultado
+        ft.Column([
+            titulo,
+            ft.Row(
+                controls=[
+                    campo_converter_de_moeda,
+                    campo_converter_para_moeda
+                ],
+                spacing=20,
+                alignment=ft.MainAxisAlignment.CENTER
+            ),
+            ft.Row(
+                controls=[valor, resultado],
+                alignment=ft.MainAxisAlignment.CENTER
+            ),
+            ft.Row(
+                controls=[botao],
+                alignment=ft.MainAxisAlignment.CENTER
+            )
+        ],
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=25)
     )
 
-
-ft.app(target=main)  # Executa como app de desktop
-# ft.app(target=main, view=ft.WEB_BROWSER)  # Ou para rodar no navegador
+if __name__ == "__main__":
+    ft.app(target=main)
